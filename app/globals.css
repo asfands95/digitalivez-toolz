@@ -38,7 +38,9 @@ body{font-size:17px;line-height:1.7}
 .aside-card h3,.aside-links h3{font-size:15px}
 @media(max-width:1000px){.nav-links a{font-size:13px}}
 @media(max-width:800px){.nav-links a{font-size:15px}}
+.document-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:15px}.document-actions .print-action{width:100%;margin-top:0}.secondary-button{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:44px;padding:10px 16px;border:1px solid #cfe0d8;border-radius:7px;background:#fff;color:#087e64;font-size:15px;font-weight:650;transition:background .2s,border-color .2s}.secondary-button:hover{background:#f3f8f5;border-color:#98c4ae}.preview-notice{margin:10px 0 0;color:#8a3b32;font-size:14px;line-height:1.55}@media print{.document-output .document-actions{display:none!important}}
 @media(max-width:520px){
+  .document-actions{grid-template-columns:1fr}
   body{font-size:16px}
   .hero-copy>p{font-size:16px}
   .hero-proof,.hero-bottom{font-size:13px}
