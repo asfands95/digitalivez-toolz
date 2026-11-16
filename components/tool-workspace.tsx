@@ -1,9 +1,11 @@
 'use client'
 
 import { useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
 import { Check, Copy, Eye, Plus, Printer, Trash2 } from 'lucide-react'
 import type { Tool } from '@/lib/tools'
 import { currencies } from '@/lib/tools'
+const BrowserFileWorkspace = dynamic(() => import('@/components/browser-file-workspace').then(module => module.BrowserFileWorkspace), { ssr: false, loading: () => <div className="file-tool-loading" role="status">Loading local file tools…</div> })
 
 const numeric=(value:string)=>Number(value)||0
 const localDate=()=>{const date=new Date();return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`}
@@ -39,6 +41,7 @@ export function ToolWorkspace({tool}:{tool:Tool}){
  const result=percentage?`${(answer??0).toFixed(2)}%`:tool.name==='Break-Even Calculator'?`${answer??0} units`:duration?`${(answer??0).toFixed(2)} hours`:fmt(answer??0)
  const set=(key:string,value:string)=>setValues(prev=>({...prev,[key]:value}))
  const copy=async(text:string)=>{try{await navigator.clipboard.writeText(text);setCopied(true);setTimeout(()=>setCopied(false),1600)}catch{setCopied(false)}}
+ if(tool.category==='PDF Tools'||tool.category==='Image Tools')return <BrowserFileWorkspace tool={tool}/>
  if(tool.category==='Business Documents')return <DocumentBuilder tool={tool} currency={currency} setCurrency={setCurrency} fmt={fmt}/>
  if(tool.category==='Marketing Tools')return <UtmBuilder/>
  const currencyTool=!duration

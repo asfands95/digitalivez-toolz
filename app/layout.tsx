@@ -5,8 +5,8 @@ import { NavigationProgress } from '@/components/navigation-progress'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://tools.digitalivez.com'),
-  title: { default: 'Digitalivez Tools | Free Business Calculators & Online Tools', template: '%s | Digitalivez Tools' },
-  description: 'Free, practical business calculators and online tools for freelancers, small businesses, and independent professionals. Smarter tools. Better business decisions.',
+  title: { default: 'Digitalivez Tools | Free Business Calculators, PDF & Image Tools', template: '%s | Digitalivez Tools' },
+  description: 'Free business calculators, browser-based PDF tools, and image tools for freelancers, small businesses, and independent professionals. Smarter tools. Better business decisions.',
   applicationName: 'Digitalivez Tools',
   generator: 'Next.js',
   icons: {
