@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
+import { NavigationProgress } from '@/components/navigation-progress'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://tools.digitalivez.com'),
@@ -43,7 +44,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="antialiased">
-        {children}
+        <NavigationProgress>
+          {children}
+        </NavigationProgress>
         {process.env.NODE_ENV === 'production' && <Analytics />}
       </body>
     </html>
