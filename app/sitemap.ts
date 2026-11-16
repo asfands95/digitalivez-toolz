@@ -1,0 +1,3 @@
+import type { MetadataRoute } from 'next'
+import { guides, tools } from '@/lib/tools'
+export default function sitemap():MetadataRoute.Sitemap{const base='https://tools.digitalivez.com';const routes=['','/tools','/calculators','/pricing-calculators','/freelancer-tools','/business-documents','/marketing-tools','/guides','/about','/contact','/privacy','/terms','/disclaimer',...tools.map(t=>t.route),...guides.map(g=>g.href)];return routes.map(path=>({url:`${base}${path}`,lastModified:new Date(),changeFrequency:path===''?'weekly':'monthly',priority:path===''?1:path.startsWith('/calculators/')||path.startsWith('/freelancer-tools/')?0.8:0.6}))}
