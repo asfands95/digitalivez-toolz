@@ -6,7 +6,7 @@ import { guides, tools } from '@/lib/tools'
 const iconMap=[ChartNoAxesCombined,Wallet,BriefcaseBusiness,FileText]
 
 const homeTitle='Free Business Calculators, PDF & Image Tools'
-const homeDescription='Free business calculators, browser-based PDF tools, and image tools for freelancers, small businesses, and independent professionals. Smarter tools. Better business decisions.'
+const homeDescription='Free browser-based business calculators, PDF tools, and image tools for freelancers, small businesses, and independent professionals.'
 
 export const metadata:Metadata={
  title:{absolute:`${homeTitle} | Digitalivez Tools`},
