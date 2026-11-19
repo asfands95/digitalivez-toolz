@@ -61,7 +61,7 @@ const fileToolSteps:Record<string,string[]>={
  'image-compressor':['Choose one or more supported images.','Set output format and encoding quality.','Compare original and processed sizes, preview, then download or ZIP.'],
  'image-resizer':['Choose an image and set dimensions or a percentage.','Keep the aspect ratio or enter independent dimensions.','Preview the final dimensions and download the resized image.'],
  'image-converter':['Choose one or more images.','Select a format supported by this browser.','Preview each converted image before downloading or ZIP.'],
- 'image-cropper':['Choose an image and an aspect-ratio preset or freeform mode.','Drag across the image with a mouse or touch to set the crop.','Preview the actual cropped result, then download.'],
+ 'image-cropper':['Choose an image and an aspect-ratio preset or freeform mode.','Move the persistent selection or drag one of its eight handles to resize it.','Preview the cropped result, then download.'],
  'image-to-base64':['Choose an image to encode, or switch to Decode and paste a Base64 string.','Preview the encoded text or decoded image.','Copy the result or download it locally.'],
  'favicon-generator':['Choose a logo or image.','Review generated icon sizes and copy the HTML tags.','Download individual PNGs or the complete ZIP, including ICO.'],
  'social-media-resizer':['Choose an image and a platform preset.','Select fit or fill and adjust crop position when filling.','Preview the preset dimensions and download the result.'],
