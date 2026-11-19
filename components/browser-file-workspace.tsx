@@ -368,6 +368,11 @@ export function BrowserFileWorkspace({ tool }: { tool: Tool }) {
     else setError('')
   }
 
+  function updateCropSelection(next: typeof crop) {
+    setCrop(next)
+    if (outputs.length) { setOutputs([]); setStatus('') }
+  }
+
   function beginCropGesture(event: ReactPointerEvent<HTMLDivElement>) {
     if (!cropStage.current) return
     const rect = cropStage.current.getBoundingClientRect()
@@ -446,7 +451,7 @@ export function BrowserFileWorkspace({ tool }: { tool: Tool }) {
       }
       next = { x: left, y: top, width: right - left, height: bottom - top }
     }
-    setCrop(next)
+    updateCropSelection(next)
   }
 
   function endCropGesture(event: ReactPointerEvent<HTMLDivElement>) {
@@ -454,7 +459,7 @@ export function BrowserFileWorkspace({ tool }: { tool: Tool }) {
   }
 
   function resetCropSelection() {
-    setCrop({ x: 0.1, y: 0.1, width: 0.8, height: 0.8 })
+    updateCropSelection({ x: 0.1, y: 0.1, width: 0.8, height: 0.8 })
   }
 
   function changeCropAspect(value: string) {
@@ -467,7 +472,7 @@ export function BrowserFileWorkspace({ tool }: { tool: Tool }) {
     if (height > 1) { height = Math.min(1, crop.height); width = height * normalizedRatio }
     const x = Math.max(0, Math.min(1 - width, crop.x + crop.width / 2 - width / 2))
     const y = Math.max(0, Math.min(1 - height, crop.y + crop.height / 2 - height / 2))
-    setCrop({ x, y, width, height })
+    updateCropSelection({ x, y, width, height })
   }
 
   const sourceFormats = slug === 'jpg-to-pdf' ? 'JPG, JPEG, PNG' : isPdf ? 'PDF' : 'JPG, PNG, WebP, AVIF where supported'
