@@ -261,12 +261,13 @@ export async function processImage(file: File, options: ImageOperationOptions): 
     flattened.height = canvas.height
     const flattenedContext = flattened.getContext('2d')
     if (!flattenedContext) throw new Error('Your browser could not flatten transparent pixels for JPG output.')
-    flattenedContext.fillStyle = '#ffffff'
+    flattenedContext.fillStyle = options.background || '#ffffff'
     flattenedContext.fillRect(0, 0, flattened.width, flattened.height)
     flattenedContext.drawImage(canvas, 0, 0)
     outputCanvas = flattened
   }
-  const blob = await canvasBlob(outputCanvas, format, options.quality)
+  let blob = await canvasBlob(outputCanvas, format, options.quality)
+  if (options.mode === 'compress' && format === 'image/png' && file.type === 'image/png' && blob.size > file.size) blob = file
   const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1] || 'png'
   const stem = file.name.replace(/\.[^.]+$/, '')
   image.close()
@@ -299,7 +300,7 @@ function removeBackground(context: CanvasRenderingContext2D, width: number, heig
 }
 
 async function decodeImage(file: File): Promise<ImageBitmap> {
-  try { return await createImageBitmap(file) }
+  try { return await createImageBitmap(file, { imageOrientation: 'from-image' }) }
   catch { throw new Error('This image format could not be decoded by your browser.') }
 }
 
