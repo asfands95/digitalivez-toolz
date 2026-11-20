@@ -379,11 +379,25 @@ export function BrowserFileWorkspace({ tool }: { tool: Tool }) {
     const startX = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
     const startY = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
     const target = event.target as HTMLElement
-    const handle = target.closest<HTMLElement>('[data-crop-handle]')?.dataset.cropHandle
-    const insideSelection = target.closest('[data-crop-selection]')
-    if (!insideSelection) return
+    const explicitHandle = target.closest<HTMLElement>('[data-crop-handle]')?.dataset.cropHandle
+    const selection = target.closest<HTMLElement>('[data-crop-selection]')
+    if (!selection) return
+
+    const left = crop.x
+    const top = crop.y
+    const right = crop.x + crop.width
+    const bottom = crop.y + crop.height
+    const edgeToleranceX = Math.max(10 / rect.width, 0.012)
+    const edgeToleranceY = Math.max(10 / rect.height, 0.012)
+    const nearLeft = Math.abs(startX - left) <= edgeToleranceX
+    const nearRight = Math.abs(startX - right) <= edgeToleranceX
+    const nearTop = Math.abs(startY - top) <= edgeToleranceY
+    const nearBottom = Math.abs(startY - bottom) <= edgeToleranceY
+    const edgeHandle = `${nearTop ? 'n' : nearBottom ? 's' : ''}${nearLeft ? 'w' : nearRight ? 'e' : ''}`
+    const handle = explicitHandle || edgeHandle || undefined
+
     cropGesture.current = { pointerId: event.pointerId, mode: handle ? 'resize' : 'move', handle, startX, startY, initial: crop }
-    cropStage.current.setPointerCapture(event.pointerId)
+    event.currentTarget.setPointerCapture(event.pointerId)
     event.preventDefault()
   }
 
