@@ -1,3 +1,5 @@
+import { socialPlatforms } from '@/lib/social-platforms'
+
 const siteUrl = 'https://tools.digitalivez.com'
 
 const structuredData = {
@@ -10,6 +12,7 @@ const structuredData = {
       url: siteUrl,
       logo: `${siteUrl}/icon.svg`,
       image: `${siteUrl}/og-image.png`,
+      sameAs: socialPlatforms.map(platform => platform.profileUrl),
     },
     {
       '@type': 'WebSite',
