@@ -3,6 +3,7 @@ import './globals.css'
 import { NavigationProgress } from '@/components/navigation-progress'
 import { CookieConsent } from '@/components/cookie-consent'
 import { SiteSchema } from '@/components/site-schema'
+import { FloatingActions } from '@/components/floating-actions'
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://tools.digitalivez.com'),
@@ -51,6 +52,7 @@ export default function RootLayout({
         </NavigationProgress>
         <SiteSchema />
         <CookieConsent />
+        <FloatingActions />
       </body>
     </html>
   )
