@@ -25,7 +25,7 @@ const collectionMetadata:Record<string,{title:string;description:string}>= {
  calculators:{title:'Free Profitability Calculators',description:'Estimate profit margins, break-even points, and late-payment fees with free business calculators built for practical planning.'},
  'pricing-calculators':{title:'Free Pricing Calculators',description:'Set selling prices, compare discounts, and understand markup with free pricing calculators for small businesses.'},
  'freelancer-tools':{title:'Free Freelancer Calculators and Tools',description:'Plan freelance rates, billable hours, project prices, and salary equivalents with practical browser-based tools.'},
- 'business-documents':{title:'Free Business Document Generators',description:'Create and print professional invoices, quotations, and receipts with free browser-based document generators.'},
+ 'business-documents':{title:'Free Business Document Generators',description:'Create professional business documents online with free invoice, quotation and receipt generators. Simple tools for freelancers and small businesses.'},
  'marketing-tools':{title:'Free Marketing Tools',description:'Build clean campaign URLs with UTM source, medium, campaign, term, and content parameters using the free UTM link builder.'},
  guides:{title:'Business Guides and Practical How-Tos',description:'Read clear, practical guides to pricing, profitability, freelance rates, billable time, discounts, and business planning.'}
 }
