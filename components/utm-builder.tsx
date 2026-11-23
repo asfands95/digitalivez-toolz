@@ -247,7 +247,7 @@ export function UtmBuilder() {
               value={selectedPreset}
               onChange={event => {
                 const preset = presets.find(([name]) => name === event.target.value)
-                if (preset) applyPreset(...preset)
+                if (preset) applyPreset(preset[0], preset[1], preset[2])
                 else setSelectedPreset('')
               }}
             >
