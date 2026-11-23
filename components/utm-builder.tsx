@@ -241,19 +241,19 @@ export function UtmBuilder() {
               </div>
               {selectedPreset && <button type="button" className="utm-clear-selection" onClick={() => setSelectedPreset('')}>Clear selection</button>}
             </div>
-            <div className="utm-preset-list" aria-label="Campaign platform presets">
-              {presets.map(([name, source, medium]) => (
-                <button
-                  type="button"
-                  key={name}
-                  className={`utm-preset${selectedPreset === name ? ' is-selected' : ''}`}
-                  aria-pressed={selectedPreset === name}
-                  onClick={() => applyPreset(name, source, medium)}
-                >
-                  {name}
-                </button>
-              ))}
-            </div>
+            <select
+              className="text-input utm-preset-select"
+              aria-label="Campaign platform presets"
+              value={selectedPreset}
+              onChange={event => {
+                const preset = presets.find(([name]) => name === event.target.value)
+                if (preset) applyPreset(...preset)
+                else setSelectedPreset('')
+              }}
+            >
+              <option value="">Choose a campaign platform</option>
+              {presets.map(([name]) => <option key={name} value={name}>{name}</option>)}
+            </select>
           </section>
 
           <fieldset className="utm-format-settings">
