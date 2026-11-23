@@ -4,7 +4,7 @@ import { socialPlatforms } from '@/lib/social-platforms'
 export function SocialLinks({ className = '' }: { className?: string }) {
   return (
     <nav className={`social-links ${className}`} aria-label="Digitalivez social profiles">
-      {socialPlatforms.map(platform => (
+      {socialPlatforms.filter(platform => ['facebook', 'threads', 'x', 'youtube'].includes(platform.id)).map(platform => (
         <a
           key={platform.id}
           className="social-link"
@@ -15,7 +15,7 @@ export function SocialLinks({ className = '' }: { className?: string }) {
           title={`${platform.name} — ${platform.handle}`}
         >
           <SocialMark id={platform.id} name={platform.name} />
-          <span>{platform.name}</span>
+          <span>Digitalivez on {platform.name}</span>
         </a>
       ))}
     </nav>
