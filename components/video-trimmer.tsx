@@ -45,13 +45,16 @@ function parseTimestamp(value: string) {
 }
 
 function prettyDuration(seconds: number) {
-  const whole = Math.max(0, Math.floor(seconds))
+  const safe = Math.max(0, seconds)
+  const whole = Math.floor(safe)
   const hours = Math.floor(whole / 3600)
   const minutes = Math.floor((whole % 3600) / 60)
   const remainder = whole % 60
+  const milliseconds = Math.floor((safe % 1) * 1000)
+  const secondLabel = `${String(remainder).padStart(2, '0')}${milliseconds ? `.${String(milliseconds).padStart(3, '0')}` : ''}`
   return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
-    : `${minutes}:${String(remainder).padStart(2, '0')}`
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${secondLabel}`
+    : `${minutes}:${secondLabel}`
 }
 
 function prettyBytes(bytes: number) {
@@ -81,8 +84,10 @@ export function VideoTrimmer() {
   const [resultUrl, setResultUrl] = useState('')
   const [resultName, setResultName] = useState('')
   const [resultSize, setResultSize] = useState(0)
+  const [resultDuration, setResultDuration] = useState(0)
   const [directSaved, setDirectSaved] = useState(false)
   const [previewingSelection, setPreviewingSelection] = useState(false)
+  const [playbackTime, setPlaybackTime] = useState(0)
   const videoRef = useRef<HTMLVideoElement>(null)
   const inputRef = useRef<Input | null>(null)
   const conversionRef = useRef<Conversion | null>(null)
@@ -100,14 +105,15 @@ export function VideoTrimmer() {
 
   const parsedStart = parseTimestamp(startText)
   const parsedEnd = parseTimestamp(endText)
-  const selectionValid = Boolean(metadata && parsedStart !== null && parsedEnd !== null && parsedStart >= 0 && parsedEnd <= metadata.duration && parsedStart < parsedEnd)
+  const useFrameStep = metadata?.frameRate ? 1 / metadata.frameRate : 0.1
+  const minimumDuration = Math.max(useFrameStep, 0.05)
+  const selectionValid = Boolean(metadata && parsedStart !== null && parsedEnd !== null && parsedStart >= 0 && parsedEnd <= metadata.duration && parsedEnd - parsedStart >= minimumDuration)
   const selectedDuration = selectionValid ? (parsedEnd as number) - (parsedStart as number) : 0
   const estimatedOutputBytes = file && metadata ? file.size * Math.min(1, selectedDuration / metadata.duration) * 1.35 : 0
-  const useFrameStep = metadata?.frameRate ? 1 / metadata.frameRate : 0.1
   const selectionStyle = useMemo(() => {
     if (!metadata?.duration) return undefined
-    return { '--start-percent': `${(start / metadata.duration) * 100}%`, '--end-percent': `${(end / metadata.duration) * 100}%` } as CSSProperties
-  }, [metadata?.duration, start, end])
+    return { '--start-percent': `${(start / metadata.duration) * 100}%`, '--end-percent': `${(end / metadata.duration) * 100}%`, '--playhead-percent': `${(playbackTime / metadata.duration) * 100}%` } as CSSProperties
+  }, [metadata?.duration, start, end, playbackTime])
 
   const revokeResult = () => {
     if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current)
@@ -115,6 +121,7 @@ export function VideoTrimmer() {
     setResultUrl('')
     setResultName('')
     setResultSize(0)
+    setResultDuration(0)
     setDirectSaved(false)
   }
 
@@ -223,8 +230,17 @@ export function VideoTrimmer() {
     setExporting(false)
     setProgress(0)
     setPreviewingSelection(false)
+    setPlaybackTime(0)
     setStatus('Video cleared. Choose another file whenever you are ready.')
     revokeResult()
+  }
+
+  const resetToOriginal = () => {
+    revokeResult()
+    setPreviewingSelection(false)
+    setPlaybackTime(0)
+    if (videoRef.current) { videoRef.current.pause(); videoRef.current.currentTime = 0 }
+    setStatus('Original video restored. Adjust the range to make another trim.')
   }
 
   const previewSelection = async () => {
@@ -242,9 +258,11 @@ export function VideoTrimmer() {
 
   const onTimeUpdate = () => {
     const player = videoRef.current
+    if (player) setPlaybackTime(player.currentTime)
     if (previewingSelection && player && player.currentTime >= (parsedEnd ?? Infinity)) {
       player.pause()
       player.currentTime = parsedStart ?? 0
+      setPlaybackTime(parsedStart ?? 0)
       setPreviewingSelection(false)
     }
   }
@@ -318,17 +336,23 @@ export function VideoTrimmer() {
       setStatus('Encoding your selected clip…')
       await conversion.execute()
       setProgress(100)
+      setResultDuration(selectedDuration)
       if (saveDirectly && directFileHandle) {
+        const savedFile = await directFileHandle.getFile()
+        const url = URL.createObjectURL(savedFile)
+        resultUrlRef.current = url
+        setResultUrl(url)
         setDirectSaved(true)
         setResultName(outputName)
-        setResultSize((await directFileHandle.getFile()).size)
-        setStatus('Your trimmed video has been saved to the selected location.')
+        setResultSize(savedFile.size)
+        setStatus('Your trimmed video has been saved and is now shown in the preview.')
       } else {
         const buffer = (target as import('mediabunny').BufferTarget).buffer
         if (!buffer) throw new Error('The export finished but no video file was produced. Please try again.')
         const url = URL.createObjectURL(new Blob([buffer], { type: format === 'mp4' ? 'video/mp4' : 'video/webm' }))
         resultUrlRef.current = url
         setResultUrl(url)
+        setResultDuration(selectedDuration)
         setResultName(outputName)
         setResultSize(buffer.byteLength)
         setStatus('Your trimmed video is ready to download.')
@@ -390,39 +414,41 @@ export function VideoTrimmer() {
         <div className="video-workspace">
           <div className="video-preview-panel">
             <video
+              key={resultUrl || previewUrl}
               ref={videoRef}
-              src={previewUrl}
+              src={resultUrl || previewUrl}
               controls
               playsInline
               preload="metadata"
               controlsList="nodownload"
               onTimeUpdate={onTimeUpdate}
+              onLoadedMetadata={() => setPlaybackTime(0)}
               onEnded={() => setPreviewingSelection(false)}
               onError={() => setError('This browser cannot preview this video container or codec. The file may still be readable for trimming if its codec is supported.')}
-              aria-label="Video preview"
+              aria-label={resultUrl ? 'Preview of trimmed video' : 'Video preview'}
             />
+            {metadata && !resultUrl && <div className="video-preview-timeline" style={selectionStyle} aria-label="Video trim timeline">
+              <div className="video-preview-track" aria-hidden="true"><span className="video-preview-selected"/><span className="video-preview-playhead"/></div>
+              <input aria-label="Set clip start time" aria-valuetext={`Start ${timestamp(start)} of ${prettyDuration(metadata.duration)}`} type="range" min="0" max={metadata.duration} step={useFrameStep} value={start} onChange={event => { const value = Math.min(Number(event.target.value), end - minimumDuration); if (value >= 0) updateSelection(value, end) }} />
+              <input aria-label="Set clip end time" aria-valuetext={`End ${timestamp(end)} of ${prettyDuration(metadata.duration)}`} type="range" min="0" max={metadata.duration} step={useFrameStep} value={end} onChange={event => { const value = Math.max(Number(event.target.value), start + minimumDuration); if (value <= metadata.duration) updateSelection(start, value) }} />
+              <div className="video-preview-time-labels"><span>{timestamp(start)} – {timestamp(end)}</span><span>{timestamp(playbackTime)} / {prettyDuration(metadata.duration)}</span></div>
+            </div>}
             <div className="video-file-summary">
-              <div><strong>{file.name}</strong><span>{prettyBytes(file.size)}{metadata ? ` · ${metadata.width} × ${metadata.height} · ${prettyDuration(metadata.duration)}` : ''}</span></div>
-              <button type="button" className="video-quiet-button" onClick={() => void clearVideo()} disabled={exporting}><RotateCcw size={15} /> Clear video</button>
+              <div><strong>{resultUrl ? resultName : file.name}</strong><span>{prettyBytes(resultUrl ? resultSize : file.size)}{metadata ? ` · ${metadata.width} × ${metadata.height} · ${prettyDuration(resultUrl ? resultDuration : metadata.duration)}` : ''}</span></div>
+              {resultUrl ? <button type="button" className="video-quiet-button" onClick={resetToOriginal}><RotateCcw size={15} /> Restore original</button> : <button type="button" className="video-quiet-button" onClick={() => void clearVideo()} disabled={exporting}><RotateCcw size={15} /> Clear video</button>}
             </div>
           </div>
 
-          {metadata && (
+          {metadata && !resultUrl && (
             <div className="video-edit-panel">
-              <div className="video-timeline-heading"><div><h3>Choose the clip to keep</h3><p>Use the handles or enter exact start and end times.</p></div><span className="video-format-chip">{metadata.mimeType || 'Video'} · {metadata.codec}</span></div>
+              <div className="video-timeline-heading"><div><h3>Choose the clip to keep</h3><p>Use the handles over the preview or enter exact start and end times.</p></div><div className="video-timeline-actions"><span className="video-format-chip">{metadata.mimeType || 'Video'} · {metadata.codec}</span><button type="button" className="video-quiet-button" onClick={() => updateSelection(0, metadata.duration)} disabled={exporting}><RotateCcw size={14}/> Reset selection</button></div></div>
               <div className="video-time-fields">
                 <label className="field"><span>Start time</span><input className="text-input" type="text" inputMode="decimal" aria-label="Start time, hours minutes seconds and milliseconds" value={startText} onChange={event => { const value = event.target.value; setStartText(value); const seconds = parseTimestamp(value); if (seconds !== null && seconds >= 0 && seconds < end) { setStart(seconds); setPreviewingSelection(false); revokeResult() } }} onBlur={() => { const seconds = parseTimestamp(startText); if (seconds !== null && seconds <= end) setStartText(timestamp(seconds)) }} /></label>
                 <label className="field"><span>End time</span><input className="text-input" type="text" inputMode="decimal" aria-label="End time, hours minutes seconds and milliseconds" value={endText} onChange={event => { const value = event.target.value; setEndText(value); const seconds = parseTimestamp(value); if (seconds !== null && seconds > start && seconds <= metadata.duration) { setEnd(seconds); setPreviewingSelection(false); revokeResult() } }} onBlur={() => { const seconds = parseTimestamp(endText); if (seconds !== null && seconds >= start) setEndText(timestamp(seconds)) }} /></label>
                 <div className="video-selected-duration"><span>Selected clip</span><strong>{selectionValid ? prettyDuration(selectedDuration) : 'Check times'}</strong></div>
               </div>
-              <div className="video-timeline" style={selectionStyle}>
-                <div className="video-timeline-track" aria-hidden="true"><span className="video-timeline-selected" /></div>
-                <input aria-label="Set clip start time" type="range" min="0" max={metadata.duration} step={useFrameStep} value={start} onChange={event => { const value = Math.min(Number(event.target.value), end - useFrameStep); if (value >= 0) updateSelection(value, end) }} />
-                <input aria-label="Set clip end time" type="range" min="0" max={metadata.duration} step={useFrameStep} value={end} onChange={event => { const value = Math.max(Number(event.target.value), start + useFrameStep); if (value <= metadata.duration) updateSelection(start, value) }} />
-              </div>
-              <div className="video-timeline-scale"><span>0:00</span><span>{prettyDuration(metadata.duration)}</span></div>
               <div className="video-selection-summary"><span>Original <strong>{prettyDuration(metadata.duration)}</strong></span><span>Selected <strong>{timestamp(parsedStart ?? 0)} – {timestamp(parsedEnd ?? 0)}</strong></span><span>Clip length <strong>{prettyDuration(selectedDuration)}</strong></span></div>
-              {!selectionValid && <p className="video-inline-error" role="alert">Enter a start at or after 00:00:00.000 and an end after the start, no later than {timestamp(metadata.duration)}.</p>}
+              {!selectionValid && <p className="video-inline-error" role="alert">Choose a start at or after 00:00:00.000 and a clip at least {minimumDuration.toFixed(2)} seconds long, ending no later than {timestamp(metadata.duration)}.</p>}
               <div className="video-export-row">
                 <button type="button" className="secondary-button video-preview-selection" disabled={!selectionValid || exporting} onClick={() => void previewSelection()}>{previewingSelection ? <Pause size={16} /> : <Play size={16} />}{previewingSelection ? 'Previewing clip' : 'Preview selected clip'}</button>
                 <label className="video-format-select"><SlidersHorizontal size={16} /><span>Export as</span><select aria-label="Export format" value={format} onChange={event => { setFormat(event.target.value as OutputFormat); revokeResult() }}>{availableFormats.map(value => <option value={value} key={value}>{value === 'mp4' ? 'MP4 · H.264' : 'WebM · VP8'}</option>)}</select></label>
@@ -438,8 +464,7 @@ export function VideoTrimmer() {
       {loading && <div className="video-progress-track" role="progressbar" aria-label="Reading video metadata" aria-valuemin={0} aria-valuemax={100}><span className="video-progress-indeterminate" /></div>}
       {exporting && <div className="video-processing"><div className="video-progress-heading"><strong>Processing Your Video</strong><span>{progress}%</span></div><div className="video-progress-track" role="progressbar" aria-label="Video export progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress}><span style={{ width: `${progress}%` }} /></div><p>Creating a {prettyDuration(selectedDuration)} clip with the selected boundaries. The file is processed on this device.</p><button type="button" className="video-quiet-button" onClick={() => void cancelExport()}><X size={15} /> Cancel export</button></div>}
       {error && <p className="video-error" role="alert">{error}</p>}
-      {(resultUrl || directSaved) && <div className="video-success" role="status"><span className="video-success-icon"><Check size={19} /></span><div><strong>Your Video Is Ready!</strong><p>{resultName} · {prettyDuration(selectedDuration)}{resultSize ? ` · ${prettyBytes(resultSize)}` : ''}</p></div>{resultUrl ? <button type="button" className="primary-button" onClick={downloadResult}><Download size={16} /> Download video</button> : <span className="video-saved-label">Saved to your selected location</span>}</div>}
-      {resultUrl && <div className="video-export-preview"><strong>Preview exported clip</strong><video src={resultUrl} controls playsInline preload="metadata" aria-label="Preview of exported video" /></div>}
+      {resultUrl && <div className="video-success" role="status"><span className="video-success-icon"><Check size={19} /></span><div><strong>Your trimmed video is in the preview above</strong><p>{resultName} · {prettyDuration(resultDuration)}{resultSize ? ` · ${prettyBytes(resultSize)}` : ''}{directSaved ? ' · Saved to your selected location' : ''}</p></div><button type="button" className="primary-button" onClick={downloadResult}><Download size={16} /> Download video</button></div>}
       <div className="video-capability-note"><ShieldCheck size={16} /><p>Precise trimming uses browser video encoders and may re-encode the selected section. Codec support varies by device; your source video is never uploaded.</p></div>
     </section>
   )

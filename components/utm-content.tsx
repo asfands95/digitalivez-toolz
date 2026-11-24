@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { FAQAccordion } from '@/components/faq-accordion'
 
 const parameters = [
   { name: 'utm_source', purpose: 'Identifies the platform, publisher, or source sending a visit.', example: 'instagram' },
@@ -58,21 +59,19 @@ export function UtmEducationalContent() {
 }
 
 export function UtmFaq() {
-  return (
-    <section className="faq-list tool-faq utm-faq">
-      <h2>Frequently asked questions</h2>
-      <details><summary>What are UTM parameters used for?</summary><p>They label campaign traffic so analytics can group visits by source, medium, campaign, and optional details such as term or content.</p></details>
-      <details><summary>What is the difference between UTM source and medium?</summary><p>Source names who sent the visit, such as google or a newsletter. Medium describes the channel, such as cpc, email, or social.</p></details>
-      <details><summary>Which UTM parameters are required?</summary><p>Use utm_source, utm_medium, and utm_campaign for clear campaign attribution. Term and content are optional.</p></details>
-      <details><summary>Are UTM parameters case-sensitive?</summary><p>Yes. Analytics reports can treat differently capitalized values as separate labels, so use one casing convention consistently.</p></details>
-      <details><summary>Can I add UTM parameters to an existing URL?</summary><p>Yes. This builder preserves unrelated query parameters and fragments, replaces existing UTM values, and places the new parameters before the fragment.</p></details>
-      <details><summary>Do UTM links work with Google Analytics 4?</summary><p>Yes. GA4 recognizes standard campaign parameters. After data processing, review acquisition reports and the session source, medium, and campaign dimensions.</p></details>
-      <details><summary>Should I use UTM parameters on internal links?</summary><p>Usually not. Internal UTM tags can overwrite the original campaign attribution and make reports harder to interpret.</p></details>
-      <details><summary>What is a UTM campaign ID?</summary><p>utm_id is an optional identifier that can distinguish a campaign using a stable ID, especially when campaign names vary or connect to an external ad platform.</p></details>
-      <details><summary>Can I use the same UTM link across multiple platforms?</summary><p>You can, but separate links with accurate source and medium values make it possible to compare platforms. Reuse one link only when you intentionally want combined reporting.</p></details>
-      <details><summary>Does this UTM builder store campaign information?</summary><p>Links are generated locally and are not sent to a server. Recent-link history is off by default; if you enable it, saved links stay in this browser until you clear them.</p></details>
-      <details><summary>Can I use UTM parameters for email marketing?</summary><p>Yes. Use a consistent email source and medium, then use campaign names to distinguish newsletters, automations, or promotions.</p></details>
-      <details><summary>Do UTM links affect SEO?</summary><p>UTM parameters do not directly improve search rankings. They are for attribution; avoid unnecessary URL variants and keep your canonical URL pointed at the clean page when appropriate.</p></details>
-    </section>
-  )
+  const items = [
+    { question: 'What are UTM parameters used for?', answer: 'They label campaign traffic so analytics can group visits by source, medium, campaign, and optional details such as term or content.' },
+    { question: 'What is the difference between UTM source and medium?', answer: 'Source names who sent the visit, such as google or a newsletter. Medium describes the channel, such as cpc, email, or social.' },
+    { question: 'Which UTM parameters are required?', answer: 'Use utm_source, utm_medium, and utm_campaign for clear campaign attribution. Term and content are optional.' },
+    { question: 'Are UTM parameters case-sensitive?', answer: 'Yes. Analytics reports can treat differently capitalized values as separate labels, so use one casing convention consistently.' },
+    { question: 'Can I add UTM parameters to an existing URL?', answer: 'Yes. This builder preserves unrelated query parameters and fragments, replaces existing UTM values, and places the new parameters before the fragment.' },
+    { question: 'Do UTM links work with Google Analytics 4?', answer: 'Yes. GA4 recognizes standard campaign parameters. After data processing, review acquisition reports and the session source, medium, and campaign dimensions.' },
+    { question: 'Should I use UTM parameters on internal links?', answer: 'Usually not. Internal UTM tags can overwrite the original campaign attribution and make reports harder to interpret.' },
+    { question: 'What is a UTM campaign ID?', answer: 'utm_id is an optional identifier that can distinguish a campaign using a stable ID, especially when campaign names vary or connect to an external ad platform.' },
+    { question: 'Can I use the same UTM link across multiple platforms?', answer: 'You can, but separate links with accurate source and medium values make it possible to compare platforms. Reuse one link only when you intentionally want combined reporting.' },
+    { question: 'Does this UTM builder store campaign information?', answer: 'Links are generated locally and are not sent to a server. Recent-link history is off by default; if you enable it, saved links stay in this browser until you clear them.' },
+    { question: 'Can I use UTM parameters for email marketing?', answer: 'Yes. Use a consistent email source and medium, then use campaign names to distinguish newsletters, automations, or promotions.' },
+    { question: 'Do UTM links affect SEO?', answer: 'UTM parameters do not directly improve search rankings. They are for attribution; avoid unnecessary URL variants and keep your canonical URL pointed at the clean page when appropriate.' },
+  ]
+  return <section className="faq-list tool-faq utm-faq"><h2>Frequently asked questions</h2><FAQAccordion items={items} /></section>
 }
