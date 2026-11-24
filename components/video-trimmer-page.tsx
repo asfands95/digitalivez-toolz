@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ArrowRight, ChevronRight, LockKeyhole, ShieldCheck, UserRoundX } from 'lucide-react'
 import { Footer, Header } from '@/components/site-shell'
 import { VideoTrimmer } from '@/components/video-trimmer'
+import { FAQAccordion } from '@/components/faq-accordion'
 import type { Tool } from '@/lib/tools'
 
 const site = 'https://tools.digitalivez.com'
@@ -61,7 +62,7 @@ export function VideoTrimmerPage({ tool }: { tool: Tool }) {
         <section><h2>Does This Video Trimmer Upload My Videos?</h2><p>No. The source is read from a local browser file and processed on your device. It is not uploaded to Digitalivez servers or sent to a third-party video-processing service. This avoids transmitting the original footage for trimming; use a private device if the video itself is sensitive.</p></section>
         <section><h2>Can I Trim Videos Without Losing Quality?</h2><p>The export aims to preserve the original displayed dimensions and frame rate and uses a high-quality encoder setting. Precise trimming may require re-encoding, so a small quality change is possible; lossless output cannot be guaranteed. Your original file remains unchanged.</p></section>
         <section><h2>When Should You Use a Video Trimmer?</h2><p>Creators can cut a clean excerpt from a recording, freelancers can prepare a short client preview, businesses can remove dead time from a presentation, and students can keep only the relevant part of a lecture. Always preview the selected range and confirm that the chosen output plays correctly on the device or service where you plan to share it.</p></section>
-        <section className="video-faq"><h2>Frequently Asked Questions</h2>{questions.map(item => <details key={item.question}><summary>{item.question}</summary><p>{item.answer}</p></details>)}</section>
+        <section className="faq-list video-faq"><h2>Frequently Asked Questions</h2><FAQAccordion items={questions} /></section>
       </div>
       <section className="supporting"><h2>Explore more tools</h2><div className="related-links"><Link href="/video-tools">Browse Video Tools <ArrowRight size={15} /></Link><Link href="/image-tools/social-media-resizer">Prepare an image for social media <ArrowRight size={15} /></Link><Link href="/marketing-tools/utm-builder">Build campaign tracking links <ArrowRight size={15} /></Link></div></section>
     </main><Footer /></>
