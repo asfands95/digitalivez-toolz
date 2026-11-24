@@ -1,4 +1,4 @@
-export type LocalOutput = { name: string; blob: Blob; kind: 'pdf' | 'image' | 'text' }
+export type LocalOutput = { name: string; blob: Blob; kind: 'pdf' | 'image' | 'text'; compressionStatus?: string }
 export type ProgressUpdate = (status: string, current: number, total: number) => void
 export type PdfPagePreview = { page: number; src: string }
 
@@ -218,7 +218,7 @@ export async function watermarkPdf(file: File, options: WatermarkOptions, imageF
   return { name: 'watermarked-document.pdf', blob: new Blob([await document.save({ useObjectStreams: true })], { type: 'application/pdf' }), kind: 'pdf' }
 }
 
-export type ImageOperationOptions = { output: string; quality: number; width?: number; height?: number; crop?: { x: number; y: number; width: number; height: number }; background?: string; tolerance?: number; edge?: number; fitMode?: 'fit' | 'fill'; offsetX?: number; offsetY?: number; mode?: 'compress' | 'resize' | 'convert' | 'crop' | 'remove-background' | 'social' }
+export type ImageOperationOptions = { output: string; quality: number; targetBytes?: number; onProgress?: ProgressUpdate; width?: number; height?: number; crop?: { x: number; y: number; width: number; height: number }; background?: string; tolerance?: number; edge?: number; fitMode?: 'fit' | 'fill'; offsetX?: number; offsetY?: number; mode?: 'compress' | 'resize' | 'convert' | 'crop' | 'remove-background' | 'social' }
 
 export async function processImage(file: File, options: ImageOperationOptions): Promise<LocalOutput> {
   const image = await decodeImage(file)
@@ -266,15 +266,41 @@ export async function processImage(file: File, options: ImageOperationOptions): 
     flattenedContext.drawImage(canvas, 0, 0)
     outputCanvas = flattened
   }
-  let blob = await canvasBlob(outputCanvas, format, options.quality)
-  if (options.mode === 'compress' && format === 'image/png' && file.type === 'image/png' && blob.size > file.size) blob = file
+  const encode = (quality: number) => canvasBlob(outputCanvas, format, quality)
+  let blob: Blob
+  let compressionStatus: string | undefined
+  if (options.mode === 'compress' && (format === 'image/jpeg' || format === 'image/webp') && options.targetBytes) {
+    let low = 0.08
+    let high = Math.max(low, Math.min(1, options.quality))
+    let best: Blob | null = null
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const candidateQuality = (low + high) / 2
+      options.onProgress?.('Adjusting image quality to approach the requested size', attempt + 1, 10)
+      const candidate = await encode(candidateQuality)
+      if (!best || Math.abs(candidate.size - options.targetBytes) < Math.abs(best.size - options.targetBytes)) best = candidate
+      if (candidate.size > options.targetBytes) high = candidateQuality
+      else low = candidateQuality
+    }
+    blob = best || await encode(0.08)
+    if (blob.size > options.targetBytes) compressionStatus = 'The requested file size could not be achieved with this format. Showing the best available result.'
+    else compressionStatus = 'The requested file-size target was reached.'
+  } else {
+    blob = await encode(options.quality)
+  }
+  if (options.mode === 'compress' && blob.size > file.size) {
+    blob = file
+    compressionStatus = 'No reduction was achieved. The original file is kept because encoding would make it larger.'
+  } else if (options.mode === 'compress' && !compressionStatus) {
+    compressionStatus = blob.size < file.size ? 'Compression completed.' : 'No size reduction was achieved; the original-size result is retained.'
+  }
   const extension = blob.type === 'image/jpeg' ? 'jpg' : blob.type.split('/')[1] || 'png'
   const stem = file.name.replace(/\.[^.]+$/, '')
+  const retainedOriginal = blob === file
   image.close()
   canvas.width = 0
   canvas.height = 0
   if (outputCanvas !== canvas) { outputCanvas.width = 0; outputCanvas.height = 0 }
-  return { name: `${stem}-${options.mode || 'processed'}.${extension}`, blob, kind: 'image' }
+  return { name: retainedOriginal ? file.name : `${stem}-${options.mode || 'processed'}.${extension}`, blob, kind: 'image', compressionStatus }
 }
 
 function removeBackground(context: CanvasRenderingContext2D, width: number, height: number, tolerance: number, edge: number, background: string) {
