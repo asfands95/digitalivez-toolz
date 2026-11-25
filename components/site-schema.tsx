@@ -12,7 +12,15 @@ const structuredData = {
       url: siteUrl,
       logo: `${siteUrl}/icon.svg`,
       image: `${siteUrl}/og-image.png`,
+      email: 'contact@digitalivez.com',
+      contactPoint: {
+        '@type': 'ContactPoint',
+        contactType: 'customer support',
+        email: 'contact@digitalivez.com',
+        url: `${siteUrl}/contact`,
+      },
       sameAs: socialPlatforms.map(platform => platform.profileUrl),
+
     },
     {
       '@type': 'WebSite',
