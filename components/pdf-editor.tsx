@@ -31,7 +31,7 @@ export function PdfEditor() {
   const [history, setHistory] = useState<EditorState[]>([])
   const [future, setFuture] = useState<EditorState[]>([])
   const pageRef = useRef<HTMLDivElement>(null)
-  const dragRef = useRef<{ id: string; x: number; y: number; mark: Mark; base: EditorState } | null>(null)
+  const dragRef = useRef<{ id: string; x: number; y: number; mark: Mark; base: EditorState; mode: 'move' | 'resize'; handle?: string } | null>(null)
   const currentPage = pages[page - 1]
   const hasMarkup = state.marks.length > 0
 
@@ -156,20 +156,43 @@ export function PdfEditor() {
   }
 
   const patchMark = (id: string, patch: Partial<Mark>) => update({ marks: state.marks.map(mark => mark.id === id ? { ...mark, ...patch } : mark), selected: id })
-  const startDrag = (event: React.PointerEvent<HTMLDivElement>, mark: Mark) => {
+  const startGesture = (event: React.PointerEvent<HTMLElement>, mark: Mark, mode: 'move' | 'resize', handle?: string) => {
     event.preventDefault()
     event.stopPropagation()
     event.currentTarget.setPointerCapture(event.pointerId)
-    dragRef.current = { id: mark.id, x: event.clientX, y: event.clientY, mark, base: state }
+    dragRef.current = { id: mark.id, x: event.clientX, y: event.clientY, mark, base: state, mode, handle }
     setState(current => ({ ...current, selected: mark.id }))
   }
   const moveDrag = (event: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current
     const bounds = pageRef.current?.getBoundingClientRect()
     if (!drag || !bounds) return
-    const x = Math.max(0, Math.min(1 - drag.mark.w, drag.mark.x + (event.clientX - drag.x) / bounds.width))
-    const y = Math.max(0, Math.min(1 - drag.mark.h, drag.mark.y + (event.clientY - drag.y) / bounds.height))
-    setState(current => ({ ...current, marks: current.marks.map(mark => mark.id === drag.id ? { ...mark, x, y } : mark) }))
+    const dx = (event.clientX - drag.x) / bounds.width
+    const dy = (event.clientY - drag.y) / bounds.height
+    let { x, y, w, h } = drag.mark
+    if (drag.mode === 'move') {
+      x = Math.max(0, Math.min(1 - w, x + dx))
+      y = Math.max(0, Math.min(1 - h, y + dy))
+    } else {
+      const handle = drag.handle || ''
+      const preferredMinWidth = (drag.mark.kind === 'text' || drag.mark.kind === 'signature' ? 48 : 24) / bounds.width
+      const minWidth = Math.min(drag.mark.w, Math.max(0.025, preferredMinWidth))
+      const preferredMinHeight = (drag.mark.kind === 'text' || drag.mark.kind === 'signature' ? drag.mark.size * 2.3 : 24) / bounds.height
+      const minHeight = Math.min(drag.mark.h, Math.max(0.02, preferredMinHeight))
+      if (handle.includes('e')) w = Math.max(minWidth, Math.min(1 - x, drag.mark.w + dx))
+      if (handle.includes('s')) h = Math.max(minHeight, Math.min(1 - y, drag.mark.h + dy))
+      if (handle.includes('w')) {
+        const right = drag.mark.x + drag.mark.w
+        w = Math.max(minWidth, Math.min(right, drag.mark.w - dx))
+        x = right - w
+      }
+      if (handle.includes('n')) {
+        const bottom = drag.mark.y + drag.mark.h
+        h = Math.max(minHeight, Math.min(bottom, drag.mark.h - dy))
+        y = bottom - h
+      }
+    }
+    setState(current => ({ ...current, marks: current.marks.map(mark => mark.id === drag.id ? { ...mark, x, y, w, h } : mark) }))
   }
   const endDrag = () => {
     const drag = dragRef.current
@@ -256,8 +279,8 @@ export function PdfEditor() {
       </div>
       <div className="pdf-editor-workspace"><nav className="pdf-editor-thumbnails" aria-label="PDF pages">{pages.map(item => <button type="button" key={item.page} className={page === item.page ? 'is-active' : ''} onClick={() => setPage(item.page)} aria-current={page === item.page ? 'page' : undefined}><img src={item.src} alt={`Page ${item.page} preview`}/><span>Page {item.page}</span></button>)}</nav>
         <div className="pdf-editor-canvas-area"><div className="pdf-editor-nav"><button type="button" onClick={() => setPage(value => Math.max(1, value - 1))} disabled={page <= 1}>Previous</button><span>Page {page} of {pages.length}</span><button type="button" onClick={() => setPage(value => Math.min(pages.length, value + 1))} disabled={page >= pages.length}>Next</button><button type="button" onClick={() => setScale(value => Math.max(0.6, value - 0.1))} aria-label="Zoom out">−</button><span>{Math.round(scale * 100)}%</span><button type="button" onClick={() => setScale(value => Math.min(1.4, value + 0.1))} aria-label="Zoom in">+</button></div>
-          {currentPage && <div className="pdf-editor-page-wrap" style={{ width: `${Math.min(100, currentPage.width * scale / 8)}%`, maxWidth: `${currentPage.width * scale}px` }}><div ref={pageRef} className="pdf-editor-page" onClick={addMark} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ aspectRatio: `${currentPage.width} / ${currentPage.height}`, cursor: 'crosshair' }}><img src={viewerSrc || currentPage.src} alt={`PDF page ${page}`} /><div className="pdf-editor-mark-layer">{state.marks.filter(mark => mark.page === page).map(mark => <div key={mark.id} className={`pdf-editor-mark pdf-editor-mark-${mark.kind}${state.selected === mark.id ? ' is-selected' : ''}`} style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, width: `${mark.w * 100}%`, height: `${mark.h * 100}%`, color: mark.color, backgroundColor: mark.kind === 'highlight' ? `${mark.color}52` : undefined, fontSize: `${Math.max(8, mark.size * scale)}px`, opacity: mark.opacity }} onPointerDown={event => startDrag(event, mark)} onClick={event => { event.stopPropagation(); update({ ...state, selected: mark.id }) }} onDoubleClick={event => { event.stopPropagation(); if (mark.kind === 'text' || mark.kind === 'signature') { const revised = window.prompt('Edit annotation text', mark.text); if (revised !== null) patchMark(mark.id, { text: revised }) } }} title="Select annotation; double-click text to edit">{mark.kind === 'text' || mark.kind === 'signature' ? mark.text : mark.kind === 'image' && mark.src ? <img src={mark.src} alt="Inserted PDF image" draggable={false}/> : null}</div>)}</div></div></div>}
-          <p className="pdf-editor-hint">Choose a tool, then click on the page to place it. Double-click text to edit; select an annotation and delete it to remove.</p>
+          {currentPage && <div className="pdf-editor-page-wrap" style={{ width: `${Math.min(100, currentPage.width * scale / 8)}%`, maxWidth: `${currentPage.width * scale}px` }}><div ref={pageRef} className="pdf-editor-page" onClick={addMark} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ aspectRatio: `${currentPage.width} / ${currentPage.height}`, cursor: 'crosshair' }}><img src={viewerSrc || currentPage.src} alt={`PDF page ${page}`} /><div className="pdf-editor-mark-layer">{state.marks.filter(mark => mark.page === page).map(mark => <div key={mark.id} className={`pdf-editor-mark pdf-editor-mark-${mark.kind}${state.selected === mark.id ? ' is-selected' : ''}`} style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, width: `${mark.w * 100}%`, height: `${mark.h * 100}%`, color: mark.color, backgroundColor: mark.kind === 'highlight' ? `${mark.color}52` : undefined, fontSize: `${Math.max(8, mark.size * scale)}px`, opacity: mark.opacity }} onPointerDown={event => startGesture(event, mark, 'move')} onClick={event => { event.stopPropagation(); update({ ...state, selected: mark.id }) }} onDoubleClick={event => { event.stopPropagation(); if (mark.kind === 'text' || mark.kind === 'signature') { const revised = window.prompt('Edit annotation text', mark.text); if (revised !== null) patchMark(mark.id, { text: revised }) } }} title="Select annotation; double-click text to edit">{mark.kind === 'text' || mark.kind === 'signature' ? <span className="pdf-editor-mark-content">{mark.text}</span> : mark.kind === 'image' && mark.src ? <img src={mark.src} alt="Inserted PDF image" draggable={false}/> : null}{state.selected === mark.id && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(handle => <button key={handle} type="button" className={`pdf-editor-resize-handle is-${handle}`} aria-label={`Resize ${mark.kind} ${handle}`} onPointerDown={event => startGesture(event, mark, 'resize', handle)} onClick={event => event.stopPropagation()}/>)}</div>)}</div></div></div>}
+          <p className="pdf-editor-hint">Choose a tool, then click on the page to place it. Drag an addition to move it; select it and drag a border handle to resize. Double-click text to edit.</p>
         </div>
       </div>
       <div className="pdf-editor-footer"><span>{hasMarkup ? `${state.marks.length} addition${state.marks.length === 1 ? '' : 's'} · original PDF content is preserved` : 'Add content to the page, then download your edited PDF.'}</span><button type="button" className="pdf-editor-primary" onClick={() => void exportPdf()} disabled={busy || !hasMarkup || pages.some(item => Math.abs(item.rotation % 360) > 0)}>{busy ? <LoaderCircle className="pdf-editor-spin"/> : <Download size={16}/>} {busy ? 'Preparing…' : 'Download edited PDF'}</button></div>
