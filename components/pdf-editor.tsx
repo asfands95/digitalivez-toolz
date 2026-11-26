@@ -3,8 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Copy, Download, FileText, ImagePlus, LoaderCircle, Redo2, Trash2, Undo2, Upload, X } from 'lucide-react'
 
-type Mark = { id: string; page: number; kind: 'text' | 'highlight' | 'rectangle' | 'line' | 'signature' | 'image'; x: number; y: number; w: number; h: number; text: string; color: string; size: number; opacity: number; weight: number; fill: boolean; textBackground: boolean; bold: boolean; italic: boolean; src?: string }
-type EditorTool = Mark['kind'] | 'eraser'
+type FontFamily = 'Helvetica' | 'TimesRoman' | 'Courier'
+type Mark = { id: string; page: number; kind: 'text' | 'highlight' | 'rectangle' | 'line' | 'signature' | 'image'; x: number; y: number; w: number; h: number; text: string; color: string; fillColor: string; fontFamily: FontFamily; size: number; opacity: number; weight: number; fill: boolean; textBackground: boolean; bold: boolean; italic: boolean; src?: string }
+type EditorTool = Mark['kind'] | 'eraser' | 'select'
 type PageImage = { page: number; src: string; width: number; height: number; rotation: number }
 type EditorState = { marks: Mark[]; selected: string | null }
 
@@ -27,7 +28,10 @@ export function PdfEditor() {
   const [color, setColor] = useState(colors[0])
   const [fontSize, setFontSize] = useState(18)
   const [weight, setWeight] = useState(2)
-  const [fill, setFill] = useState(false)
+  const [fill, setFill] = useState(true)
+  const [fillColor, setFillColor] = useState('#ffffff')
+  const [fontFamily, setFontFamily] = useState<FontFamily>('Helvetica')
+  const [signatureFontFamily, setSignatureFontFamily] = useState<FontFamily>('TimesRoman')
   const [textBackground, setTextBackground] = useState(false)
   const [bold, setBold] = useState(false)
   const [italic, setItalic] = useState(false)
@@ -147,6 +151,7 @@ export function PdfEditor() {
 
   const addMark = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!currentPage || tool === 'eraser') return
+    if (tool === 'select') { setState(current => ({ ...current, selected: null })); return }
     const bounds = event.currentTarget.getBoundingClientRect()
     const pointerX = (event.clientX - bounds.left) / bounds.width
     const pointerY = (event.clientY - bounds.top) / bounds.height
@@ -155,13 +160,16 @@ export function PdfEditor() {
     const markHeight = tool === 'image' ? Math.min(0.5, markWidth * imageAspect * currentPage.width / currentPage.height) : tool === 'text' || tool === 'signature' ? 0.06 : 0.08
     const x = Math.max(0, Math.min(1 - markWidth, pointerX))
     const y = Math.max(0, Math.min(1 - markHeight, pointerY))
-    const mark: Mark = { id: crypto.randomUUID(), page, kind: tool as Mark['kind'], x, y, w: markWidth, h: markHeight, text: tool === 'signature' ? (text || 'Your signature') : text, color, size: fontSize, opacity: tool === 'highlight' ? 0.32 : 1, weight, fill, textBackground, bold, italic, ...(tool === 'image' ? { src: imageSource } : {}) }
+    const mark: Mark = { id: crypto.randomUUID(), page, kind: tool as Mark['kind'], x, y, w: markWidth, h: markHeight, text: tool === 'signature' ? (text || 'Your signature') : text, color, fillColor, fontFamily: tool === 'signature' ? signatureFontFamily : fontFamily, size: fontSize, opacity: tool === 'highlight' ? 0.32 : 1, weight, fill, textBackground, bold, italic, ...(tool === 'image' ? { src: imageSource } : {}) }
     if ((tool === 'text' || tool === 'signature') && !mark.text.trim()) { setError('Enter text before placing it on the page.'); return }
     update({ marks: [...state.marks, mark], selected: mark.id })
     setError('')
   }
 
   const patchMark = (id: string, patch: Partial<Mark>) => update({ marks: state.marks.map(mark => mark.id === id ? { ...mark, ...patch } : mark), selected: id })
+  const applySelected = (patch: Partial<Mark>) => { if (state.selected) patchMark(state.selected, patch) }
+  const selectedMark = state.marks.find(mark => mark.id === state.selected)
+  const editingKind = selectedMark?.kind ?? tool
   const startGesture = (event: React.PointerEvent<HTMLElement>, mark: Mark, mode: 'move' | 'resize', handle?: string) => {
     event.preventDefault()
     event.stopPropagation()
@@ -229,12 +237,25 @@ export function PdfEditor() {
       const { PDFDocument, StandardFonts, rgb } = await import('pdf-lib')
       const pdfDocument = await PDFDocument.load(await file.arrayBuffer())
       const fonts = {
-        regular: await pdfDocument.embedFont(StandardFonts.Helvetica),
-        bold: await pdfDocument.embedFont(StandardFonts.HelveticaBold),
-        italic: await pdfDocument.embedFont(StandardFonts.HelveticaOblique),
-        boldItalic: await pdfDocument.embedFont(StandardFonts.HelveticaBoldOblique),
+        Helvetica: {
+          regular: await pdfDocument.embedFont(StandardFonts.Helvetica),
+          bold: await pdfDocument.embedFont(StandardFonts.HelveticaBold),
+          italic: await pdfDocument.embedFont(StandardFonts.HelveticaOblique),
+          boldItalic: await pdfDocument.embedFont(StandardFonts.HelveticaBoldOblique),
+        },
+        TimesRoman: {
+          regular: await pdfDocument.embedFont(StandardFonts.TimesRoman),
+          bold: await pdfDocument.embedFont(StandardFonts.TimesRomanBold),
+          italic: await pdfDocument.embedFont(StandardFonts.TimesRomanItalic),
+          boldItalic: await pdfDocument.embedFont(StandardFonts.TimesRomanBoldItalic),
+        },
+        Courier: {
+          regular: await pdfDocument.embedFont(StandardFonts.Courier),
+          bold: await pdfDocument.embedFont(StandardFonts.CourierBold),
+          italic: await pdfDocument.embedFont(StandardFonts.CourierOblique),
+          boldItalic: await pdfDocument.embedFont(StandardFonts.CourierBoldOblique),
+        },
       }
-      const signatureFont = await pdfDocument.embedFont(StandardFonts.TimesRomanItalic)
       const pagesOut = pdfDocument.getPages()
       if (pagesOut.some(outputPage => Math.abs(outputPage.getRotation().angle % 360) > 0)) throw new Error('This PDF contains rotated pages. To keep annotation placement accurate, rotate the pages upright in a PDF tool and upload the corrected copy before adding edits.')
       for (const mark of state.marks) {
@@ -250,12 +271,18 @@ export function PdfEditor() {
           const image = await pdfDocument.embedPng(imageBytes)
           outputPage.drawImage(image, { x, y: y - mark.h * height, width: mark.w * width, height: mark.h * height, opacity: mark.opacity })
         } else if (mark.kind === 'text' || mark.kind === 'signature') {
-          if (mark.textBackground) outputPage.drawRectangle({ x, y: y - mark.size * 1.25, width: mark.w * width, height: mark.size * 1.5, color: rgb(1, 1, 1), borderWidth: 0 })
-          outputPage.drawText(mark.text, { x, y: y - mark.size, size: mark.size, font: mark.kind === 'signature' ? signatureFont : mark.bold && mark.italic ? fonts.boldItalic : mark.bold ? fonts.bold : mark.italic ? fonts.italic : fonts.regular, color: ink, maxWidth: mark.w * width, opacity: mark.opacity })
+          if (mark.textBackground) {
+            const fillInk = rgb(parseInt(mark.fillColor.slice(1, 3), 16) / 255, parseInt(mark.fillColor.slice(3, 5), 16) / 255, parseInt(mark.fillColor.slice(5, 7), 16) / 255)
+            outputPage.drawRectangle({ x, y: y - mark.size * 1.25, width: mark.w * width, height: mark.size * 1.5, color: fillInk, borderWidth: 0 })
+          }
+          const family = fonts[mark.fontFamily]
+          const font = mark.bold && mark.italic ? family.boldItalic : mark.bold ? family.bold : mark.italic ? family.italic : family.regular
+          outputPage.drawText(mark.text, { x, y: y - mark.size, size: mark.size, font, color: ink, maxWidth: mark.w * width, opacity: mark.opacity })
         } else if (mark.kind === 'highlight') {
           outputPage.drawRectangle({ x, y: y - mark.h * height, width: mark.w * width, height: mark.h * height, color: ink, opacity: mark.opacity, borderWidth: 0 })
         } else if (mark.kind === 'rectangle') {
-          outputPage.drawRectangle({ x, y: y - mark.h * height, width: mark.w * width, height: mark.h * height, ...(mark.fill ? { color: ink } : { borderColor: ink }), borderWidth: mark.weight, opacity: mark.opacity })
+          const fillInk = rgb(parseInt(mark.fillColor.slice(1, 3), 16) / 255, parseInt(mark.fillColor.slice(3, 5), 16) / 255, parseInt(mark.fillColor.slice(5, 7), 16) / 255)
+          outputPage.drawRectangle({ x, y: y - mark.h * height, width: mark.w * width, height: mark.h * height, ...(mark.fill ? { color: fillInk } : {}), borderColor: ink, borderWidth: mark.weight, opacity: mark.opacity })
         } else {
           outputPage.drawLine({ start: { x, y }, end: { x: x + mark.w * width, y: y - mark.h * height }, thickness: mark.weight, color: ink, opacity: mark.opacity })
         }
@@ -275,25 +302,27 @@ export function PdfEditor() {
   }
 
   return <section className="pdf-editor" aria-label="PDF editor">
-    <div className="pdf-editor-header"><div><span className="eyebrow">PRIVATE · BROWSER-BASED EDITOR</span><h2>Edit PDF Online</h2><p>Add text, signatures, highlights, rectangles, and lines to your PDF.</p></div>{file && <button type="button" className="pdf-editor-icon-button" onClick={clear} aria-label="Remove and replace PDF"><X/></button>}</div>
+    <div className="pdf-editor-header"><div><span className="eyebrow">PRIVATE · BROWSER-BASED EDITOR</span><h2>Edit PDF Online</h2><p>Add, select, and edit text, signatures, shapes, and images on your PDF.</p></div>{file && <button type="button" className="pdf-editor-icon-button" onClick={clear} aria-label="Remove and replace PDF"><X/></button>}</div>
     {error && <p className="pdf-editor-error" role="alert">{error}</p>}
     {!file ? <div className="pdf-editor-upload"><input ref={inputRef} type="file" accept="application/pdf,.pdf" aria-label="Choose a PDF file" onChange={event => { const selected = event.target.files?.[0]; if (selected) void loadFile(selected) }}/> {busy ? <><LoaderCircle className="pdf-editor-spin"/><strong>Opening PDF locally…</strong></> : <><FileText size={32}/><strong>Choose a PDF to edit</strong><span>Up to 50 MB · max 200 pages · processed in this browser</span><button type="button" className="pdf-editor-primary" onClick={() => inputRef.current?.click()}><Upload size={16}/> Browse PDF</button></>}</div> : <>
       <div className="pdf-editor-file"><FileText size={18}/><span>{file.name}</span><small>{pages.length} {pages.length === 1 ? 'page' : 'pages'} · {(file.size / 1024 / 1024).toFixed(2)} MB</small></div>
       {pages.some(item => Math.abs(item.rotation % 360) > 0) && <p className="pdf-editor-error" role="alert">This PDF contains rotated pages. Annotation export is disabled until you rotate the pages upright and upload the corrected copy.</p>}
       <div className="pdf-editor-toolbar" role="toolbar" aria-label="PDF annotation tools">
-        <label>Tool<select value={tool} onChange={event => setTool(event.target.value as EditorTool)}><option value="text">Text</option><option value="signature">Typed signature</option><option value="highlight">Highlight</option><option value="rectangle">Rectangle</option><option value="line">Line</option><option value="image">Image</option><option value="eraser">Eraser</option></select></label>
+        <label>Tool<select value={tool} onChange={event => setTool(event.target.value as EditorTool)}><option value="select">Select</option><option value="text">Text</option><option value="signature">Typed signature</option><option value="highlight">Highlight</option><option value="rectangle">Rectangle</option><option value="line">Line</option><option value="image">Image</option><option value="eraser">Eraser</option></select></label>
         <input ref={imageInputRef} className="pdf-editor-image-input" type="file" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" aria-label="Upload an image for the PDF" onChange={event => { const chosen = event.currentTarget.files?.[0]; if (chosen) void loadImage(chosen); event.currentTarget.value = '' }}/>
         <button className="pdf-editor-icon-button" type="button" onClick={() => imageInputRef.current?.click()}><ImagePlus/> Add image</button>
-        {(tool === 'text' || tool === 'signature') && <label>Text<input value={text} onChange={event => setText(event.target.value)} placeholder={tool === 'signature' ? 'Your name' : 'Enter text'} aria-label="Text to add"/></label>}
-        <label>Size<input type="number" min="8" max="72" value={fontSize} onChange={event => { const size = Math.max(8, Math.min(72, Number(event.target.value) || 18)); setFontSize(size); if (state.selected) update({ marks: state.marks.map(mark => mark.id === state.selected ? { ...mark, size } : mark), selected: state.selected }) }} aria-label="Text size"/></label>
-        <fieldset className="pdf-editor-color-picker"><legend>Color</legend><div className="pdf-editor-swatches" style={{ display: 'flex', gap: 7, padding: '5px 0' }}>{colors.map((value, index) => <button key={value} type="button" aria-label={`Color ${index + 1}`} aria-pressed={color === value} onClick={() => setColor(value)} style={{ width: 24, height: 24, padding: 0, borderRadius: 99, border: '1px solid #dfe8e4', backgroundColor: value, outline: color === value ? '2px solid #172b3c' : undefined }}/>)}</div><label className="pdf-editor-custom-color">Custom color<input type="color" value={color} onChange={event => setColor(event.target.value)} aria-label="Choose custom annotation color"/></label></fieldset>
-        {(tool === 'rectangle' || tool === 'line') && <><label>Weight<input type="range" min="1" max="12" value={weight} onChange={event => setWeight(Number(event.target.value))} aria-label="Line weight"/><span>{weight} pt</span></label>{tool === 'rectangle' && <label>Fill<select value={fill ? 'fill' : 'none'} onChange={event => setFill(event.target.value === 'fill')}><option value="none">No fill</option><option value="fill">Fill</option></select></label>}</>}
-        {(tool === 'text' || tool === 'signature') && <><label className="pdf-editor-check"><input type="checkbox" checked={bold} onChange={event => setBold(event.target.checked)}/> Bold</label><label className="pdf-editor-check"><input type="checkbox" checked={italic} onChange={event => setItalic(event.target.checked)}/> Italic</label><label className="pdf-editor-check"><input type="checkbox" checked={textBackground} onChange={event => setTextBackground(event.target.checked)}/> White text background</label></>}
+        {(editingKind === 'text' || editingKind === 'signature') && <label>Text<input value={selectedMark && (selectedMark.kind === 'text' || selectedMark.kind === 'signature') ? selectedMark.text : text} onChange={event => { setText(event.target.value); applySelected({ text: event.target.value }) }} placeholder={tool === 'signature' ? 'Your name' : 'Enter text'} aria-label="Text to add"/></label>}
+        {(editingKind === 'text' || editingKind === 'signature') && <label>{editingKind === 'signature' ? 'Signature font' : 'Font family'}<select value={selectedMark?.fontFamily ?? (editingKind === 'signature' ? signatureFontFamily : fontFamily)} onChange={event => { const value = event.target.value as FontFamily; if (editingKind === 'signature') setSignatureFontFamily(value); else setFontFamily(value); applySelected({ fontFamily: value }) }}><option value="Helvetica">Helvetica</option><option value="TimesRoman">Times New Roman</option><option value="Courier">Courier</option></select></label>}
+        <label>Size<input type="number" min="8" max="72" value={selectedMark?.size ?? fontSize} onChange={event => { const size = Math.max(8, Math.min(72, Number(event.target.value) || 18)); setFontSize(size); applySelected({ size }) }} aria-label="Text size"/></label>
+        {selectedMark && <label>Opacity<input type="range" min="0.05" max="1" step="0.05" value={selectedMark.opacity} onChange={event => applySelected({ opacity: Number(event.target.value) })} aria-label="Selected element opacity"/><span>{Math.round(selectedMark.opacity * 100)}%</span></label>}
+        <fieldset className="pdf-editor-color-picker"><legend>Color</legend><div className="pdf-editor-swatches" style={{ display: 'flex', gap: 7, padding: '5px 0' }}>{colors.map((value, index) => <button key={value} type="button" aria-label={`Color ${index + 1}`} aria-pressed={(selectedMark?.color ?? color) === value} onClick={() => { setColor(value); applySelected({ color: value }) }} style={{ width: 24, height: 24, padding: 0, borderRadius: 99, border: '1px solid #dfe8e4', backgroundColor: value, outline: (selectedMark?.color ?? color) === value ? '2px solid #172b3c' : undefined }}/>)}</div><label className="pdf-editor-custom-color">Custom color<input type="color" value={selectedMark?.color ?? color} onChange={event => { setColor(event.target.value); applySelected({ color: event.target.value }) }} aria-label="Choose custom annotation color"/></label></fieldset>
+        {(editingKind === 'rectangle' || editingKind === 'line') && <><label>Weight<input type="range" min="1" max="12" value={selectedMark?.weight ?? weight} onChange={event => { const value = Number(event.target.value); setWeight(value); applySelected({ weight: value }) }} aria-label="Line weight"/><span>{selectedMark?.weight ?? weight} pt</span></label>{editingKind === 'rectangle' && <><label>Fill<select value={(selectedMark?.fill ?? fill) ? 'fill' : 'none'} onChange={event => { const value = event.target.value === 'fill'; setFill(value); applySelected({ fill: value }) }}><option value="none">Transparent</option><option value="fill">Solid fill</option></select></label><label>Fill color<input type="color" value={selectedMark?.fillColor ?? fillColor} onChange={event => { setFillColor(event.target.value); applySelected({ fillColor: event.target.value }) }} aria-label="Choose shape fill color"/></label></>}</>}
+        {(editingKind === 'text' || editingKind === 'signature') && <><label className="pdf-editor-check"><input type="checkbox" checked={selectedMark?.bold ?? bold} onChange={event => { setBold(event.target.checked); applySelected({ bold: event.target.checked }) }}/> Bold</label><label className="pdf-editor-check"><input type="checkbox" checked={selectedMark?.italic ?? italic} onChange={event => { setItalic(event.target.checked); applySelected({ italic: event.target.checked }) }}/> Italic</label><label>Text background<select value={(selectedMark?.textBackground ?? textBackground) ? 'solid' : 'transparent'} onChange={event => { const value = event.target.value === 'solid'; setTextBackground(value); applySelected({ textBackground: value }) }}><option value="transparent">Transparent</option><option value="solid">Solid color</option></select></label><label>Background color<input type="color" value={selectedMark?.fillColor ?? fillColor} onChange={event => { setFillColor(event.target.value); applySelected({ fillColor: event.target.value }) }} aria-label="Choose text background color"/></label></>}
         <div className="pdf-editor-actions"><button type="button" onClick={undo} disabled={!history.length} aria-label="Undo"><Undo2/></button><button type="button" onClick={redo} disabled={!future.length} aria-label="Redo"><Redo2/></button><button type="button" onClick={duplicateSelected} disabled={!state.selected} aria-label="Duplicate selected annotation"><Copy/></button><button type="button" onClick={removeSelected} disabled={!state.selected} aria-label="Delete selected annotation"><Trash2/></button><button type="button" onClick={clearCurrentPage} disabled={!state.marks.some(mark => mark.page === page)} aria-label="Clear additions on this page"><Trash2/></button></div>
       </div>
       <div className="pdf-editor-workspace"><nav className="pdf-editor-thumbnails" aria-label="PDF pages">{pages.map(item => <button type="button" key={item.page} className={page === item.page ? 'is-active' : ''} onClick={() => setPage(item.page)} aria-current={page === item.page ? 'page' : undefined}><img src={item.src} alt={`Page ${item.page} preview`}/><span>Page {item.page}</span></button>)}</nav>
         <div className="pdf-editor-canvas-area"><div className="pdf-editor-nav"><button type="button" onClick={() => setPage(value => Math.max(1, value - 1))} disabled={page <= 1}>Previous</button><span>Page {page} of {pages.length}</span><button type="button" onClick={() => setPage(value => Math.min(pages.length, value + 1))} disabled={page >= pages.length}>Next</button><button type="button" onClick={() => setScale(value => Math.max(0.6, value - 0.1))} aria-label="Zoom out">−</button><span>{Math.round(scale * 100)}%</span><button type="button" onClick={() => setScale(value => Math.min(1.4, value + 0.1))} aria-label="Zoom in">+</button></div>
-          {currentPage && <div className="pdf-editor-page-wrap" style={{ width: `${Math.min(100, currentPage.width * scale / 8)}%`, maxWidth: `${currentPage.width * scale}px` }}><div ref={pageRef} className="pdf-editor-page" onClick={addMark} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ aspectRatio: `${currentPage.width} / ${currentPage.height}`, cursor: 'crosshair' }}><img src={viewerSrc || currentPage.src} alt={`PDF page ${page}`} /><div className="pdf-editor-mark-layer">{state.marks.filter(mark => mark.page === page).map(mark => <div key={mark.id} className={`pdf-editor-mark pdf-editor-mark-${mark.kind}${state.selected === mark.id ? ' is-selected' : ''}`} style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, width: `${mark.w * 100}%`, height: `${mark.h * 100}%`, color: mark.color, backgroundColor: mark.kind === 'highlight' ? `${mark.color}52` : mark.kind === 'rectangle' && mark.fill ? `${mark.color}52` : (mark.kind === 'text' || mark.kind === 'signature') && mark.textBackground ? '#ffffff' : undefined, border: mark.kind === 'rectangle' && !mark.fill ? `${Math.max(1, mark.weight * scale)}px solid ${mark.color}` : undefined, fontSize: `${Math.max(8, mark.size * scale)}px`, fontWeight: mark.bold ? 'bold' : undefined, fontStyle: mark.italic ? 'italic' : undefined, opacity: mark.opacity }} onPointerDown={event => { if (tool !== 'eraser') startGesture(event, mark, 'move') }} onClick={event => { event.stopPropagation(); if (tool === 'eraser') update({ marks: state.marks.filter(item => item.id !== mark.id), selected: state.selected === mark.id ? null : state.selected }); else update({ ...state, selected: mark.id }) }} onDoubleClick={event => { event.stopPropagation(); if (mark.kind === 'text' || mark.kind === 'signature') { const revised = window.prompt('Edit annotation text', mark.text); if (revised !== null) patchMark(mark.id, { text: revised }) } }} title="Select annotation; double-click text to edit">{mark.kind === 'text' || mark.kind === 'signature' ? <span className="pdf-editor-mark-content">{mark.text}</span> : mark.kind === 'image' && mark.src ? <img src={mark.src} alt="Inserted PDF image" draggable={false}/> : null}{state.selected === mark.id && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(handle => <button key={handle} type="button" className={`pdf-editor-resize-handle is-${handle}`} aria-label={`Resize ${mark.kind} ${handle}`} onPointerDown={event => startGesture(event, mark, 'resize', handle)} onClick={event => event.stopPropagation()}/>)}</div>)}</div></div></div>}
+          {currentPage && <div className="pdf-editor-page-wrap" style={{ width: `${Math.min(100, currentPage.width * scale / 8)}%`, maxWidth: `${currentPage.width * scale}px` }}><div ref={pageRef} className="pdf-editor-page" onClick={addMark} onPointerMove={moveDrag} onPointerUp={endDrag} onPointerCancel={endDrag} style={{ aspectRatio: `${currentPage.width} / ${currentPage.height}`, cursor: tool === 'select' ? 'default' : 'crosshair' }}><img src={viewerSrc || currentPage.src} alt={`PDF page ${page}`} /><div className="pdf-editor-mark-layer">{state.marks.filter(mark => mark.page === page).map(mark => <div key={mark.id} className={`pdf-editor-mark pdf-editor-mark-${mark.kind}${state.selected === mark.id ? ' is-selected' : ''}`} style={{ left: `${mark.x * 100}%`, top: `${mark.y * 100}%`, width: `${mark.w * 100}%`, height: `${mark.h * 100}%`, color: mark.color, backgroundColor: mark.kind === 'highlight' ? `${mark.color}52` : mark.kind === 'rectangle' && mark.fill ? mark.fillColor : (mark.kind === 'text' || mark.kind === 'signature') && mark.textBackground ? mark.fillColor : undefined, border: mark.kind === 'rectangle' ? `${Math.max(1, mark.weight * scale)}px solid ${mark.color}` : undefined, borderTop: mark.kind === 'line' ? `${Math.max(1, mark.weight * scale)}px solid ${mark.color}` : undefined, fontFamily: mark.fontFamily === 'TimesRoman' ? 'Georgia, "Times New Roman", serif' : mark.fontFamily === 'Courier' ? 'Courier New, monospace' : 'Arial, Helvetica, sans-serif', fontSize: `${Math.max(8, mark.size * scale)}px`, fontWeight: mark.bold ? 'bold' : undefined, fontStyle: mark.italic ? 'italic' : undefined, opacity: mark.opacity }} onPointerDown={event => { if (tool !== 'eraser') startGesture(event, mark, 'move') }} onClick={event => { event.stopPropagation(); if (tool === 'eraser') update({ marks: state.marks.filter(item => item.id !== mark.id), selected: state.selected === mark.id ? null : state.selected }); else setState(current => ({ ...current, selected: mark.id })) }} onDoubleClick={event => { event.stopPropagation(); if (mark.kind === 'text' || mark.kind === 'signature') { const revised = window.prompt('Edit annotation text', mark.text); if (revised !== null) patchMark(mark.id, { text: revised }) } }} title="Select annotation; double-click text to edit">{mark.kind === 'text' || mark.kind === 'signature' ? <span className="pdf-editor-mark-content">{mark.text}</span> : mark.kind === 'image' && mark.src ? <img src={mark.src} alt="Inserted PDF image" draggable={false}/> : null}{state.selected === mark.id && ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'].map(handle => <button key={handle} type="button" className={`pdf-editor-resize-handle is-${handle}`} aria-label={`Resize ${mark.kind} ${handle}`} onPointerDown={event => startGesture(event, mark, 'resize', handle)} onClick={event => event.stopPropagation()}/>)}</div>)}</div></div></div>}
           <p className="pdf-editor-hint">Choose a tool, then click on the page to place it. Drag an addition to move it; select it and drag a border handle to resize. Double-click text to edit.</p>
         </div>
       </div>
