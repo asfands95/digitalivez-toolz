@@ -52,12 +52,12 @@ export function CookieConsent() {
       </>}
       {choice === 'unset' && (
         <aside className="cookie-consent" aria-label="Analytics and cookie preferences" aria-live="polite">
+          <div className="cookie-consent-copy">
+            <p>We use cookies to analyze site traffic and improve your experience. By clicking “Accept”, you consent to our use of cookies. <Link href="/privacy">Privacy Policy</Link></p>
+          </div>
           <div className="cookie-consent-actions">
             <button type="button" className="cookie-reject" onClick={() => choose('rejected')}>Reject</button>
             <button type="button" className="cookie-accept" onClick={() => choose('accepted')}>Accept</button>
-          </div>
-          <div className="cookie-consent-copy">
-            <p>We use cookies to analyze site traffic and improve your experience. By clicking “Accept”, you consent to our use of cookies. <Link href="/privacy">Privacy Policy</Link></p>
           </div>
         </aside>
       )}
