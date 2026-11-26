@@ -54,8 +54,7 @@ export function CookieConsent() {
         <aside className="cookie-consent" aria-label="Analytics and cookie preferences" aria-live="polite">
           <div className="cookie-consent-copy">
             <strong>Cookie preferences</strong>
-            <p>We use cookies to analyze Digitalivez site traffic and improve your experience. Accept to allow optional analytics cookies. <Link href="/privacy">Privacy Policy</Link></p>
-            <small>You can change your choice any time in Cookie settings.</small>
+            <p><span>We use optional analytics cookies to improve Digitalivez.</span><Link href="/privacy">Privacy Policy</Link><span className="cookie-settings-copy">Change your choice in Cookie settings.</span></p>
           </div>
           <div className="cookie-consent-actions">
             <button type="button" className="cookie-reject" onClick={() => choose('rejected')}>Decline</button>
