@@ -28,5 +28,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...guides.map(guide => guide.href),
   ])
 
-  return [...routes].map(path => ({ url: new URL(path, siteUrl).toString() }))
+  return [...routes].map(path => ({
+    url: new URL(path, siteUrl).toString(),
+    changeFrequency: path === '/' || collectionRoutes.includes(path) ? 'weekly' : 'monthly',
+    priority: path === '/' ? 1 : collectionRoutes.includes(path) ? 0.8 : tools.some(tool => tool.route === path) ? 0.7 : 0.6,
+  }))
 }
