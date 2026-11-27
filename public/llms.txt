@@ -15,7 +15,9 @@ Digitalivez Tools offers practical planning calculators, business document build
 - [Profitability calculators](https://tools.digitalivez.com/calculators): Profit margins, break-even points, and late-payment estimates.
 - [Pricing calculators](https://tools.digitalivez.com/pricing-calculators): Selling prices, discounts, markup, and margin planning.
 - [Freelancer tools](https://tools.digitalivez.com/freelancer-tools): Hourly rates, billable hours, project pricing, and pay estimates.
-- [Business documents](https://tools.digitalivez.com/business-documents): Create invoices, quotations, and receipts.
+- [Business documents](https://tools.digitalivez.com/business-documents): Create invoices, quotations, receipts, company stamps, and letterheads.
+- [Stamp Generator](https://tools.digitalivez.com/stamp-generator): Design company stamps and seals with editable text, shapes, ink, and local exports.
+- [Letterhead Maker](https://tools.digitalivez.com/letterhead-maker): Design branded company stationery, write a letter, and export editable files.
 - [PDF tools](https://tools.digitalivez.com/pdf-tools): Edit, watermark, rotate, merge, split, compress, and convert PDFs locally.
 - [PDF editor](https://tools.digitalivez.com/pdf-tools/pdf-editor): Add and adjust text, signatures, shapes, images, and watermarks in the browser.
 - [Image tools](https://tools.digitalivez.com/image-tools): Resize, compress, convert, crop, and enhance images.
