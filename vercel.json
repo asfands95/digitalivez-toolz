@@ -1,4 +1,8 @@
 {
+  "redirects": [
+    { "source": "/stamp-generator", "destination": "/business-documents/stamp-generator", "permanent": true },
+    { "source": "/letterhead-maker", "destination": "/business-documents/letterhead-maker", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(.*\\.(?:avif|gif|ico|jpe?g|png|svg|webp))",
