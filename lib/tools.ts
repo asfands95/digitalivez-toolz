@@ -47,11 +47,11 @@ tool('Social Media Image Resizer','Image Tools','social-media-resizer','Prepare 
 ]
 tools.push(...browserFileTools)
 const stampGeneratorTool = tool('Stamp Generator', doc, 'stamp-generator', 'Create a custom company stamp, rubber stamp, or digital seal with editable shapes, curved text, logos, and professional exports.', [], 'Build a vector stamp design from editable text, shape, color, and logo settings.', 'Choose a template, edit the stamp text and ink color, preview it live, then export a transparent PNG, vector SVG, print-size PDF, or editable project file.', ['stamp maker','rubber stamp generator','company stamp','custom stamp','digital stamp','stamp design'])
-stampGeneratorTool.route = '/stamp-generator'
+stampGeneratorTool.route = '/business-documents/stamp-generator'
 stampGeneratorTool.title = 'Free Online Stamp Generator – Create Custom Stamps'
 stampGeneratorTool.meta = 'Create a custom company stamp online for free. Edit curved text, shapes, colors and logos, then download transparent PNG, SVG, PDF or an editable project.'
 const letterheadMakerTool = tool('Letterhead Maker', doc, 'letterhead-maker', 'Design a professional company letterhead with reusable branding, business details, letter writing, and practical exports.', [], 'Combine reusable company branding, page layout, contact details, and optional correspondence in a printable letterhead.', 'Choose a stationery template, add company details and a logo, customize the page, then download SVG, PNG, PDF, editable Word, or a project file.', ['company letterhead','business stationery','letterhead template','letter maker','business letter'])
-letterheadMakerTool.route = '/letterhead-maker'
+letterheadMakerTool.route = '/business-documents/letterhead-maker'
 letterheadMakerTool.title = 'Free Letterhead Maker – Design Professional Company Letterheads'
 letterheadMakerTool.meta = 'Design professional company letterheads with customizable templates, logos, colors and fonts. Write a letter and download PDF, PNG, SVG, editable Word or project files.'
 tools.push(stampGeneratorTool, letterheadMakerTool)
