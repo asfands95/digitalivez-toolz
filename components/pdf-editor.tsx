@@ -249,6 +249,7 @@ export function PdfEditor() {
 
   const exportPdf = async () => {
     if (!file) return
+    setState(current => ({ ...current, selected: null }))
     setBusy(true)
     setError('')
     try {
